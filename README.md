@@ -15,3 +15,10 @@ The environment variables required to use this function are as follows:
 | CLIENT_ID            | Client ID of the application with scopes set in EntraID    |
 | CLIENT_KEY           | Client secret of the application with scopes set in EntraID |
 | TENANT_ID            | Tenant ID of the application with scopes set in EntraID    |
+
+## bicep
+usege:
+
+```
+az deployment group creat --name <deployment-name> --resource-group <rg-name> --template-file <bicep-path>
+```
