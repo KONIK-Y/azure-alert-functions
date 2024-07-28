@@ -17,7 +17,7 @@ The environment variables required to use this function are as follows:
 | TENANT_ID            | Tenant ID of the application with scopes set in EntraID    |
 
 ## bicep
-usege:
+usage:
 
 ```
 az deployment group creat --name <deployment-name> --resource-group <rg-name> --template-file <bicep-path>
