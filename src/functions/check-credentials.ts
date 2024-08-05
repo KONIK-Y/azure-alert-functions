@@ -6,7 +6,7 @@ import { Application, PasswordCredential } from '@microsoft/microsoft-graph-type
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
 import { WebClient } from '@slack/web-api';
 
-interface willExpireCert {
+interface WillExpireCert {
   certName: string;
   expireDate: string;
 }
@@ -44,8 +44,8 @@ export async function httpTrigger1(): Promise<HttpResponseInit> {
     };
   }
 
-  let results = [];
-  let ids = [];
+  let results: Array<{ appname: string; certs: WillExpireCert[] }> = [];
+  let ids: string[] = [];
   try {
     const applications = await graphClient.api('/applications').get();
     ids = applications.value.map((app) => app.id);
@@ -60,9 +60,9 @@ export async function httpTrigger1(): Promise<HttpResponseInit> {
     try {
       const app: Application = await graphClient.api(`/applications/${ids[i]}`).get();
       if (app.passwordCredentials.length > 0) {
-        const certs: { appname: string; cert: willExpireCert[] } = { appname: '', cert: [] };
+        const certs: { appname: string; cert: WillExpireCert[] } = { appname: '', cert: [] };
         certs.appname = app.displayName;
-        let appCerts: willExpireCert[] = [];
+        let appCerts: WillExpireCert[] = [];
         for (let i = 0; i < app.passwordCredentials.length; i++) {
           const cert: PasswordCredential = app.passwordCredentials[i];
           if (dateCheck(cert.endDateTime, ExpireDate)) {
@@ -92,38 +92,32 @@ export async function httpTrigger1(): Promise<HttpResponseInit> {
             text: `*${ExpireDate}日以内に更新が必要な証明書があります。設定を確認して更新してください。*`,
           },
         },
-        {
-          type: 'divider',
-        },
+        { type: 'divider' },
+        ...results.flatMap(({ appname, certs }) => [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `\`アプリケーション名: ${appname}\``,
+            },
+          },
+          { type: 'divider' },
+          ...certs.map(({ certName, expireDate }) => {
+            const today = new Date();
+            const expire = new Date(expireDate);
+            const daysLeft = expire.getDate() - today.getDate();
+            return {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `\n\t*証明書名:* ${certName}\n\t*有効期限:* ${expireDate} (${daysLeft}日後)${daysLeft < 7 ? ':warning: 有効期限まで7日を切っています！' : ''}`,
+              },
+            };
+          }),
+          { type: 'divider' },
+        ]),
       ],
     };
-    for (let i = 0; i < results.length; i++) {
-      blockText.blocks.push({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `\`アプリケーション名: ${results[i].appname}\``,
-        },
-      });
-      blockText.blocks.push({
-        type: 'divider',
-      });
-      for (let j = 0; j < results[i].certs.length; j++) {
-        const today = new Date();
-        const expire = new Date(results[i].certs[j].expireDate);
-        blockText.blocks.push({
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `\n\t*証明書名:* ${results[i].certs[j].certName}\n
-\t*有効期限:* ${results[i].certs[j].expireDate}(${expire.getDate() - today.getDate()}日後)${expire.getDate() - today.getDate() < 7 ? ':warning: 有効期限まで7日を切っています！' : ''}`,
-          },
-        });
-      }
-      blockText.blocks.push({
-        type: 'divider',
-      });
-    }
 
     try {
       const client = new WebClient(slackToken);
